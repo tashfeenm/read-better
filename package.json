@@ -8,8 +8,12 @@
     "adf": "./src/cli.js"
   },
   "exports": {
-    ".": "./src/index.js"
+    ".": {
+      "types": "./src/index.d.ts",
+      "default": "./src/index.js"
+    }
   },
+  "types": "./src/index.d.ts",
   "engines": {
     "node": ">=18"
   },
