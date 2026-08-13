@@ -3,6 +3,7 @@ import { read } from './registry.js';
 export { read, detect } from './registry.js';
 export { render, renderBlocks, labelOf } from './render.js';
 export { contentOf, fingerprint } from './blocks.js';
+export { outlineModel, outlineText, getPointer } from './outline.js';
 export { inlineText } from './codecs/adf.js';
 
 /** Convenience: parse a DOCUMENT input to canonical blocks. Throws for data
