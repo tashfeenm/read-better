@@ -8,10 +8,11 @@
 //   4. YAML subset parse (structured root only), a11y sniff, else generic YAML.
 import * as adf from './codecs/adf.js';
 import * as json from './codecs/json.js';
+import * as markdown from './codecs/markdown.js';
 
 // Ordered: specific document codecs before the generic data fallback.
 const VALUE_CODECS = [adf, json];
-const ALL_CODECS = [adf, json];
+const ALL_CODECS = [adf, json, markdown];
 
 export function codecById(id) {
   const codec = ALL_CODECS.find((c) => c.id === id);
