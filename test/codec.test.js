@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { parse, render, diff } from '../src/index.js';
+import { parse, render } from '../src/index.js';
 
 const FIXTURES = join(dirname(fileURLToPath(import.meta.url)), '..', 'fixtures');
 const v1 = JSON.parse(readFileSync(join(FIXTURES, 'release-notes-v1.json'), 'utf8'));
@@ -38,24 +38,6 @@ test('render: compact markdown, and much smaller than the ADF source', () => {
   assert.match(md, /> \*\*WARNING:\*\*/);
   const adfSize = JSON.stringify(v1).length;
   assert.ok(md.length < adfSize / 3, `markdown (${md.length}) should be <1/3 of ADF (${adfSize})`);
-});
-
-test('diff: edits pair up as changed; adds/removes/moves are detected', () => {
-  const ops = diff(v1, v2);
-  const summaries = ops.map((op) => op.summary);
-
-  assert.ok(summaries.some((s) => /warning panel removed/.test(s)), summaries.join(' | '));
-  assert.ok(summaries.some((s) => /code block \(bash\) edited/.test(s)), summaries.join(' | '));
-  assert.ok(summaries.some((s) => /task list: 2\/3 done \(was 1\)/.test(s)), summaries.join(' | '));
-  assert.ok(summaries.some((s) => /table: 2 → 3 rows/.test(s)), summaries.join(' | '));
-  assert.ok(summaries.some((s) => /section "Comms" added/.test(s)), summaries.join(' | '));
-
-  // The unchanged heading/paragraph blocks must NOT appear in the diff.
-  assert.ok(!summaries.some((s) => /Rollback.*(added|removed)/.test(s)), summaries.join(' | '));
-});
-
-test('diff: identical docs produce no ops', () => {
-  assert.deepEqual(diff(v1, v1), []);
 });
 
 test('parse: rejects non-ADF input', () => {

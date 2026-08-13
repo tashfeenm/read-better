@@ -1,75 +1,59 @@
-# adf-codec
+# read-better
 
-> Parse, render, and diff **Atlassian Document Format** (ADF) — the JSON
-> rich-text format inside every Jira description, Jira comment, and
-> Confluence page. Built so AI agents stop paying token tax on `{"type":
-> "paragraph","content":[…]}` scaffolding.
+> Token-efficient reading for AI agents. Parse the rich formats work tools
+> actually emit — Jira/Confluence ADF today; JSON/YAML outlines, Markdown,
+> Figma trees, OpenAPI, Playwright snapshots next — into **addressable
+> blocks**, and render them as compact markdown.
 
-**The problem:** ask any Jira/Confluence API (or MCP server) for content and
-you get ADF — a deeply nested JSON tree where one sentence costs hundreds of
-tokens of structural noise. Agents read it badly and diff it worse.
+**The problem:** ask a work tool's API for content and you get a deeply
+nested machine format. One sentence of a Jira description costs hundreds of
+tokens of JSON scaffolding. Agents read it badly and pay for every brace.
 
-**What this does, zero dependencies:**
+**The stance:** converters (markitdown, pandoc, Docling) flatten documents
+into one-way strings. read-better parses them into **canonical blocks with
+content-stable IDs** — so a block can be referenced, fetched alone, and
+compared across versions by other tools. Markdown is just one *view* of the
+blocks. (Version diffing itself lives in
+[what-changed](../what-changed), which builds on this library.)
 
-- **`render`** — ADF → compact markdown. The fixture doc in this repo is
-  **5.3× smaller** rendered (and markdown tokenizes far better than JSON).
-- **`parse`** — ADF → a flat array of typed blocks (heading, paragraph, code,
-  list, tasks, table, panel, expand, media…) with **content-stable IDs**:
-  moving a block keeps its ID, editing it changes it.
-- **`diff`** — two ADF docs → block-level ops: `added` / `removed` /
-  `changed` / `moved`, with human summaries. Edits re-pair via a similarity
-  pass, so an edited code block is one `changed`, not remove+add noise.
+## Use
 
 ```bash
-$ adf diff release-notes-v1.json release-notes-v2.json
-[CHANGED] code block (bash) edited
-[CHANGED] task list: 2/3 done (was 1)
-[CHANGED] table: 2 → 3 rows
-[REMOVED] warning panel removed
-[ADDED] section "Comms" added
+read-better render <doc.json|->   # rich format → compact markdown
+read-better parse  <doc.json|->   # rich format → canonical blocks (JSON)
 ```
 
-## CLI
-
 ```bash
-adf render <doc.json|->            # ADF → markdown (reads stdin with -)
-adf parse  <doc.json|->            # ADF → canonical blocks (JSON)
-adf diff   <a.json> <b.json> [--json]
-```
-
-Input can be a bare ADF doc, a whole Jira issue payload (plucks
-`fields.description`), or a Confluence v2 body (`body.atlas_doc_format`).
-
-```bash
-# Read a Jira ticket like a human:
+# Read a Jira ticket like a human (5x+ smaller than the raw ADF):
 curl -s -u "$JIRA_EMAIL:$JIRA_API_TOKEN" \
   "https://your.atlassian.net/rest/api/3/issue/PROJ-42?fields=description" \
-  | adf render -
+  | read-better render -
 ```
+
+Accepts bare ADF docs, whole Jira issue payloads (plucks
+`fields.description`), and Confluence v2 bodies (`body.atlas_doc_format`).
 
 ## Library
 
 ```js
-import { parse, render, diff } from 'adf-codec';
+import { parse, render, labelOf } from 'read-better';
 
-const blocks = parse(adfDoc);      // typed blocks with stable IDs
-const md = render(adfDoc);         // compact markdown
-const ops = diff(oldDoc, newDoc);  // [{op, type, label, summary, before?, after?}]
+const blocks = parse(adfDoc);   // [{id, type, text, ...}] — stable IDs
+const md = render(adfDoc);      // compact markdown
 ```
 
-## Design notes
+- **IDs are content hashes** (`type` + normalized text): moving a block keeps
+  its ID; editing changes it. This is what makes blocks addressable and
+  downstream diffing tractable.
+- **Pure functions.** No network, no state, zero dependencies.
+- **Nothing silently disappears** — unknown node types pass through as
+  opaque text. Presentation-only marks (underline, colors) are dropped by
+  design; structural ones (bold, code, links) survive as markdown.
 
-- **Pure functions.** No network, no state — format in, blocks/markdown/ops out.
-- **Stable identity by content hash.** `type + normalized text`, with
-  occurrence suffixes for repeats. Moves keep IDs; edits change them and get
-  re-paired by word-set similarity (Jaccard ≥ 0.4, same type).
-- **Nothing silently disappears.** Unknown node types pass through as opaque
-  text blocks.
-- **Presentation marks are dropped by design** (underline, colors);
-  structural marks survive as markdown (bold, italic, code, links, strike).
+## Roadmap (formats)
 
-Extracted from [what-changed](../what-changed) — a local change-memory layer
-for work tools — but useful standalone anywhere an agent touches Jira or
-Confluence.
+ADF ✓ → Markdown → JSON/YAML outline mode (shape-not-values for big files)
+→ Confluence storage XHTML → Figma node trees → OpenAPI/Postman →
+Playwright a11y YAML.
 
 MIT.

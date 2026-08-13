@@ -1,11 +1,11 @@
 {
-  "name": "adf-codec",
-  "version": "0.1.0",
-  "description": "Parse, render, and diff Atlassian Document Format (ADF) — token-efficient Jira/Confluence content for AI agents.",
+  "name": "read-better",
+  "version": "0.2.0",
+  "description": "Token-efficient reading for AI agents: parse rich work-tool formats (Jira/Confluence ADF, and growing) into addressable blocks, render them as compact markdown.",
   "type": "module",
   "license": "MIT",
   "bin": {
-    "adf": "./src/cli.js"
+    "read-better": "./src/cli.js"
   },
   "exports": {
     ".": {
@@ -20,5 +20,5 @@
   "scripts": {
     "test": "node --test test/"
   },
-  "keywords": ["adf", "atlassian", "jira", "confluence", "diff", "markdown", "agents", "llm"]
+  "keywords": ["adf", "atlassian", "jira", "confluence", "markdown", "parser", "agents", "llm", "tokens"]
 }

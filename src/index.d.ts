@@ -1,5 +1,5 @@
-/** A canonical block parsed from an ADF document. */
-export interface AdfBlock {
+/** A canonical block parsed from a rich-format document. */
+export interface Block {
   /** Content-stable identity: hash of type + normalized text (+ occurrence suffix). */
   id: string;
   type: string;
@@ -14,29 +14,17 @@ export interface AdfBlock {
   ids?: string[];
 }
 
-export interface AdfDiffOp {
-  op: 'added' | 'removed' | 'changed' | 'moved';
-  type: string;
-  label: string;
-  summary: string;
-  before?: string;
-  after?: string;
-}
-
 /** ADF document or JSON string → canonical blocks with stable IDs. */
-export function parse(adf: object | string): AdfBlock[];
+export function parse(adf: object | string): Block[];
 
 /** ADF document or pre-parsed blocks → compact markdown. */
-export function render(input: object | string | AdfBlock[]): string;
+export function render(input: object | string | Block[]): string;
 
-/** Block-level diff of two ADF documents (or pre-parsed block arrays). */
-export function diff(a: object | string | AdfBlock[], b: object | string | AdfBlock[]): AdfDiffOp[];
-
-/** One-line label for a block, as used in diff summaries. */
-export function labelOf(block: AdfBlock): string;
+/** One-line human label for a block ("warning panel", 'section "Comms"'). */
+export function labelOf(block: Block): string;
 
 /** Inline ADF content → text with lightweight markdown marks. */
 export function inlineText(node: object): string;
 
-/** The diffable content of a block (text, items, or rows flattened). */
-export function contentOf(block: AdfBlock): string;
+/** The comparable content of a block (text, items, or rows flattened). */
+export function contentOf(block: Block): string;
