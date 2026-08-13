@@ -1,0 +1,11 @@
+- banner:
+  - heading "Acme Store" [level=1]
+  - navigation:
+    - link "Products"
+    - link "Cart"
+- main:
+  - heading "Checkout" [level=2]
+  - textbox "Email address"
+  - button "Pay now"
+- contentinfo:
+  - text "© 2026 Acme"

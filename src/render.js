@@ -1,15 +1,17 @@
 // Render canonical blocks to compact markdown — the shared default view for
 // document codecs. This is the token-efficiency payoff: a Jira description
 // that arrives as ~40 lines of ADF JSON reads back as 3 lines of markdown.
-import { read } from './registry.js';
+import { read, codecById } from './registry.js';
 
-/** Render raw input (auto-detected document format) to markdown. */
+/** Render raw input (auto-detected document format) to markdown (or the
+ *  codec's own view, when it defines one — e.g. a11y's indented tree). */
 export function render(input, opts = {}) {
   const result = read(input, opts);
   if (result.kind !== 'document') {
     throw new Error(`"${result.codec}" is a data format — use outline() / the outline verb, not render.`);
   }
-  return renderBlocks(result.blocks);
+  const codec = codecById(result.codec);
+  return codec.render ? codec.render(result.blocks) : renderBlocks(result.blocks);
 }
 
 /** Render pre-parsed canonical blocks. Explicit on purpose: a bare JSON

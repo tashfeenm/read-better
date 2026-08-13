@@ -6,7 +6,7 @@
 // All verbs accept --format <id> to override detection.
 import { readFileSync } from 'node:fs';
 import { read } from './registry.js';
-import { renderBlocks } from './render.js';
+import { render } from './render.js';
 import { outlineModel, outlineText, getPointer } from './outline.js';
 
 function loadText(path) {
@@ -22,11 +22,7 @@ const [cmd, path, ...rest] = process.argv.slice(2);
 try {
   switch (cmd) {
     case 'render': {
-      const result = read(loadText(path), opts(path, rest));
-      if (result.kind !== 'document') {
-        throw new Error(`"${result.codec}" is a data format — use: read-better outline ${path}`);
-      }
-      console.log(renderBlocks(result.blocks));
+      console.log(render(loadText(path), opts(path, rest)));
       break;
     }
     case 'parse': {

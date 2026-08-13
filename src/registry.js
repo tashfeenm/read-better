@@ -10,11 +10,12 @@ import * as adf from './codecs/adf.js';
 import * as json from './codecs/json.js';
 import * as markdown from './codecs/markdown.js';
 import * as yaml from './codecs/yaml.js';
+import * as a11y from './codecs/a11y.js';
 import { parseYaml, YamlSubsetError } from './yaml.js';
 
 // Ordered: specific document codecs before the generic data fallback.
 const VALUE_CODECS = [adf, json];
-const ALL_CODECS = [adf, json, markdown, yaml];
+const ALL_CODECS = [adf, json, markdown, yaml, a11y];
 
 export function codecById(id) {
   const codec = ALL_CODECS.find((c) => c.id === id);
@@ -94,9 +95,10 @@ function detectFromValue(value) {
   return json;
 }
 
-// YAML-parsed values route to document codecs that ride on YAML (a11y, once
-// registered) or fall back to generic YAML data.
-function yamlFamilyCodec(_value) {
+// YAML-parsed values route to document codecs that ride on YAML, else fall
+// back to generic YAML data.
+function yamlFamilyCodec(value) {
+  if (a11y.detectValue(value)) return a11y;
   return yaml;
 }
 
