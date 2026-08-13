@@ -11,11 +11,13 @@ import * as json from './codecs/json.js';
 import * as markdown from './codecs/markdown.js';
 import * as yaml from './codecs/yaml.js';
 import * as a11y from './codecs/a11y.js';
+import * as figma from './codecs/figma.js';
+import * as openapi from './codecs/openapi.js';
 import { parseYaml, YamlSubsetError } from './yaml.js';
 
 // Ordered: specific document codecs before the generic data fallback.
-const VALUE_CODECS = [adf, json];
-const ALL_CODECS = [adf, json, markdown, yaml, a11y];
+const VALUE_CODECS = [adf, openapi, figma, json];
+const ALL_CODECS = [adf, json, markdown, yaml, a11y, figma, openapi];
 
 export function codecById(id) {
   const codec = ALL_CODECS.find((c) => c.id === id);
