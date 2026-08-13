@@ -62,6 +62,10 @@ export function finalizeBlocks(blocks, { contentIds = true } = {}) {
     const n = seen.get(base) ?? 0;
     seen.set(base, n + 1);
     block.id = n === 0 ? base : `${base}~${n}`;
+    // Downstream diffing needs to know how the id was derived: content ids
+    // change on edit (so remove+add pairs may be re-paired by similarity);
+    // native ids never should be (a different id IS a different thing).
+    block.idSource = contentIds ? 'content' : 'native';
   }
   return blocks;
 }

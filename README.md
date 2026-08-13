@@ -19,9 +19,17 @@ blocks. (Version diffing itself lives in
 ## Use
 
 ```bash
-read-better render <doc.json|->   # rich format → compact markdown
-read-better parse  <doc.json|->   # rich format → canonical blocks (JSON)
+read-better render  <file|->             # document → compact view (auto-detected)
+read-better outline <file|-> [--depth N] # data (JSON/YAML) → shape, not values
+read-better get     <file|-> <pointer>   # targeted fetch (RFC 6901 JSON Pointer)
+read-better parse   <file|->             # → canonical blocks / parsed value
+read-better detect  <file|->             # which codec claims the input
 ```
+
+**Formats:** ADF (Jira/Confluence rich text) · Markdown · JSON · YAML
+(strict-reject subset) · Figma files · OpenAPI/Postman · Playwright a11y
+snapshots. Detection is automatic (`--format` overrides); Markdown is
+hint-gated so malformed data never silently reads as prose.
 
 ```bash
 # Read a Jira ticket like a human (5x+ smaller than the raw ADF):
@@ -50,10 +58,12 @@ const md = render(adfDoc);      // compact markdown
   opaque text. Presentation-only marks (underline, colors) are dropped by
   design; structural ones (bold, code, links) survive as markdown.
 
-## Roadmap (formats)
-
-ADF ✓ → Markdown → JSON/YAML outline mode (shape-not-values for big files)
-→ Confluence storage XHTML → Figma node trees → OpenAPI/Postman →
-Playwright a11y YAML.
+- **Identity ≠ fingerprint:** every block carries `id` (which block — native
+  when the format has real ids, content-derived otherwise) and `hash` (what
+  it currently says, meta included). This is what makes downstream diffing
+  catch in-place edits.
+- **Outline over dump:** big JSON/YAML reads as shape — types, lengths, key
+  presence, small value domains — then `get` fetches exactly the part you
+  need.
 
 MIT.
