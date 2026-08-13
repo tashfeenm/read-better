@@ -15,6 +15,17 @@ export function parse(text) {
   const blocks = [];
   let i = 0;
 
+  // YAML frontmatter (--- … ---) at the very top: capture as ONE opaque
+  // block instead of mangling it into rule + paragraph soup. Not lost, not
+  // interpreted — a frontmatter edit diffs as a single 'frontmatter' change.
+  if (lines[0]?.trim() === '---') {
+    const end = lines.findIndex((l, idx) => idx > 0 && /^(---|\.\.\.)\s*$/.test(l.trim()));
+    if (end > 0) {
+      blocks.push({ type: 'frontmatter', text: lines.slice(1, end).join('\n') });
+      i = end + 1;
+    }
+  }
+
   while (i < lines.length) {
     const line = lines[i];
 

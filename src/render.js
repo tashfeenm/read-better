@@ -51,6 +51,8 @@ function renderBlock(block) {
       return `<details><summary>${block.title}</summary>\n\n${block.text}\n\n</details>`;
     case 'rule':
       return '---';
+    case 'frontmatter':
+      return `---\n${block.text}\n---`;
     case 'media':
       return `(media: ${block.ids?.join(', ') || 'attachment'}${block.text ? ` — ${block.text}` : ''})`;
     default:
@@ -73,6 +75,7 @@ export function labelOf(block) {
     case 'expand': return `expand "${clip(block.title ?? '')}"`;
     case 'media': return 'media';
     case 'rule': return 'divider';
+    case 'frontmatter': return 'frontmatter';
     default: return `${block.type} "${clip(block.text ?? '')}"`;
   }
 }

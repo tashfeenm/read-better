@@ -41,6 +41,25 @@ test('openapi: endpoints as native-id blocks with param/response meta', () => {
   assert.deepEqual(list.meta.auth, ['bearerAuth']);
 });
 
+test('openapi: YAML specs detect as openapi documents, not generic yaml data', () => {
+  const spec = `
+openapi: 3.1.0
+info:
+  title: Tiny API
+  version: 1.0.0
+paths:
+  /ping:
+    get:
+      summary: Ping
+      responses:
+        "200": {}
+`;
+  const result = read(spec);
+  assert.equal(result.codec, 'openapi');
+  assert.equal(result.kind, 'document');
+  assert.ok(result.blocks.some((b) => b.id === 'GET /ping'));
+});
+
 test('openapi: render lists the API surface compactly', () => {
   const out = render(openapi);
   assert.match(out, /# Acme Checkout API 1\.4\.0/);

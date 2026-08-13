@@ -31,20 +31,21 @@ export function codecById(id) {
  * @returns { codec, kind, blocks? , value? }
  */
 export function read(input, { filename = null, format = null } = {}) {
-  const codec = resolveCodec(input, { filename, format });
+  const { codec, parsed } = resolveCodec(input, { filename, format });
+  // Detection may have already parsed the input (JSON/YAML) — reuse it.
+  const payload = parsed !== undefined ? parsed : coerceForCodec(input, codec);
   if (codec.kind === 'document') {
-    const blocks = codec.parse(coerceForCodec(input, codec));
-    return { codec: codec.id, kind: 'document', blocks };
+    return { codec: codec.id, kind: 'document', blocks: codec.parse(payload) };
   }
-  return { codec: codec.id, kind: 'data', value: codec.parseValue(coerceForCodec(input, codec)) };
+  return { codec: codec.id, kind: 'data', value: codec.parseValue(payload) };
 }
 
 function resolveCodec(input, { filename, format }) {
-  if (format) return codecById(format);
+  if (format) return { codec: codecById(format) };
 
   // Object input: detect over value codecs directly.
   if (typeof input === 'object' && input !== null) {
-    return detectFromValue(input);
+    return { codec: detectFromValue(input), parsed: input };
   }
 
   const text = String(input);
@@ -62,12 +63,12 @@ function resolveCodec(input, { filename, format }) {
     if (value === null || typeof value !== 'object') {
       throw new Error('Input is a bare JSON scalar — nothing to read. Pass a document or data structure.');
     }
-    return detectFromValue(value);
+    return { codec: detectFromValue(value), parsed: value };
   }
 
   // 2) Markdown: filename hint only, never a fallback for malformed data.
   if (filename && /\.(md|markdown)$/i.test(filename)) {
-    return codecById('markdown'); // throws until the markdown codec registers
+    return { codec: codecById('markdown') };
   }
 
   // Looks like intended-JSON that failed to parse? Error loudly rather than
@@ -79,9 +80,9 @@ function resolveCodec(input, { filename, format }) {
   // 3) YAML subset — accepted only with a STRUCTURED root (map/sequence);
   // bare-scalar "YAML" would swallow arbitrary prose.
   try {
-    const value = parseYaml(text);
-    if (value !== null && typeof value === 'object') {
-      return yamlFamilyCodec(value);
+    const yamlValue = parseYaml(text);
+    if (yamlValue !== null && typeof yamlValue === 'object') {
+      return { codec: yamlFamilyCodec(yamlValue), parsed: yamlValue };
     }
   } catch (err) {
     if (err instanceof YamlSubsetError) throw err; // named construct — helpful, don't mask
@@ -98,9 +99,11 @@ function detectFromValue(value) {
 }
 
 // YAML-parsed values route to document codecs that ride on YAML, else fall
-// back to generic YAML data.
+// back to generic YAML data. OpenAPI matters here: real-world specs are
+// mostly YAML, and their endpoints deserve block diffing, not value diffing.
 function yamlFamilyCodec(value) {
   if (a11y.detectValue(value)) return a11y;
+  if (openapi.detectValue(value)) return openapi;
   return yaml;
 }
 
@@ -111,5 +114,5 @@ function coerceForCodec(input, codec) {
 }
 
 export function detect(input, opts = {}) {
-  return resolveCodec(input, opts).id;
+  return resolveCodec(input, opts).codec.id;
 }

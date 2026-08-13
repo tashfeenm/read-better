@@ -30,6 +30,17 @@ test('markdown: parses to the same block shapes as ADF', () => {
   assert.ok(blocks.every((b) => b.id && b.hash));
 });
 
+test('markdown: YAML frontmatter becomes one opaque block, not soup', () => {
+  const doc = '---\ntitle: Notes\ntags: [a, b]\n---\n\n# Real Heading\n\nBody.';
+  const { blocks } = read(doc, { filename: 'doc.md' });
+  assert.equal(blocks[0].type, 'frontmatter');
+  assert.match(blocks[0].text, /title: Notes/);
+  assert.equal(blocks[1].type, 'heading');
+  assert.equal(blocks[1].text, 'Real Heading');
+  // No spurious rule/paragraph blocks from the delimiters.
+  assert.ok(!blocks.some((b) => b.type === 'rule'));
+});
+
 test('markdown: round-trips through the shared renderer', () => {
   const { blocks } = read(md, { filename: 'notes-v1.md' });
   const out = renderBlocks(blocks);

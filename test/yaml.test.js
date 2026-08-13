@@ -52,6 +52,17 @@ folded: >-
   assert.equal(value.folded, 'a b c');
 });
 
+test('yaml: single-line flow collections parse (real OpenAPI needs them)', () => {
+  const value = parseYaml(`
+empty: {}
+tags: [payments, "front end", 3]
+resp: {code: 200, body: {ok: true}, arr: [1, 2]}
+`);
+  assert.deepEqual(value.empty, {});
+  assert.deepEqual(value.tags, ['payments', 'front end', 3]);
+  assert.deepEqual(value.resp, { code: 200, body: { ok: true }, arr: [1, 2] });
+});
+
 test('yaml: strict-reject names the construct', () => {
   const cases = [
     ['base: &anchor 1', /anchors/],
@@ -59,7 +70,7 @@ test('yaml: strict-reject names the construct', () => {
     ['t: !!str x', /tags/],
     ['%YAML 1.2', /directives/],
     ['a: 1\n---\nb: 2', /multi-document/],
-    ['list: [1, 2, 3]', /flow collections/],
+    ['list: [1, 2', /flow collections spanning lines/],
     ['\tkey: 1', /tab indentation/],
     ['weird: a: b', /ambiguous plain scalar/],
     ['a: 1\na: 2', /duplicate key/],
