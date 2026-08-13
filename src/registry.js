@@ -1,0 +1,91 @@
+// Codec registry and format detection.
+// Detection contract (order matters; see FOUNDING plan / Codex review):
+//   1. explicit `format` always wins;
+//   2. strict JSON first (JSON is valid YAML — JSON must win), then
+//      structured-document sniffs over the parsed value, else generic JSON;
+//   3. Markdown ONLY via filename hint or explicit format — never a silent
+//      fallback for malformed JSON/YAML (those error loudly);
+//   4. YAML subset parse (structured root only), a11y sniff, else generic YAML.
+import * as adf from './codecs/adf.js';
+import * as json from './codecs/json.js';
+
+// Ordered: specific document codecs before the generic data fallback.
+const VALUE_CODECS = [adf, json];
+const ALL_CODECS = [adf, json];
+
+export function codecById(id) {
+  const codec = ALL_CODECS.find((c) => c.id === id);
+  if (!codec) throw new Error(`Unknown format "${id}". Known: ${ALL_CODECS.map((c) => c.id).join(', ')}`);
+  return codec;
+}
+
+/**
+ * Read any supported input.
+ * @param input string (raw file text) or object (already-parsed JSON value)
+ * @returns { codec, kind, blocks? , value? }
+ */
+export function read(input, { filename = null, format = null } = {}) {
+  const codec = resolveCodec(input, { filename, format });
+  if (codec.kind === 'document') {
+    const blocks = codec.parse(coerceForCodec(input, codec));
+    return { codec: codec.id, kind: 'document', blocks };
+  }
+  return { codec: codec.id, kind: 'data', value: codec.parseValue(coerceForCodec(input, codec)) };
+}
+
+function resolveCodec(input, { filename, format }) {
+  if (format) return codecById(format);
+
+  // Object input: detect over value codecs directly.
+  if (typeof input === 'object' && input !== null) {
+    return detectFromValue(input);
+  }
+
+  const text = String(input);
+
+  // 1) strict JSON
+  let value;
+  let isJson = false;
+  try {
+    value = JSON.parse(text);
+    isJson = true;
+  } catch {
+    isJson = false;
+  }
+  if (isJson) {
+    if (value === null || typeof value !== 'object') {
+      throw new Error('Input is a bare JSON scalar — nothing to read. Pass a document or data structure.');
+    }
+    return detectFromValue(value);
+  }
+
+  // 2) Markdown: filename hint only, never a fallback for malformed data.
+  if (filename && /\.(md|markdown)$/i.test(filename)) {
+    return codecById('markdown'); // throws until the markdown codec registers
+  }
+
+  // Looks like intended-JSON that failed to parse? Error loudly rather than
+  // guessing (leading { or [ is not valid YAML-subset either).
+  if (/^\s*[{[]/.test(text)) {
+    throw new Error('Input looks like JSON but failed to parse. Fix the JSON or pass --format.');
+  }
+
+  throw new Error('Could not detect format (tried JSON; Markdown needs a .md filename or --format). Pass --format to override.');
+}
+
+function detectFromValue(value) {
+  for (const codec of VALUE_CODECS) {
+    if (codec.detectValue?.(value)) return codec;
+  }
+  return json;
+}
+
+function coerceForCodec(input, codec) {
+  if (typeof input !== 'string') return input;
+  if (codec.acceptsText) return input; // text-native codecs (markdown, yaml)
+  return JSON.parse(input);
+}
+
+export function detect(input, opts = {}) {
+  return resolveCodec(input, opts).id;
+}

@@ -1,41 +1,54 @@
 #!/usr/bin/env node
 // read-better — read work-tool formats like a human, at a fraction of the tokens.
-//   read-better render <doc.json|->   rich format → compact markdown
-//   read-better parse  <doc.json|->   rich format → canonical blocks (JSON)
-// Currently supported: ADF (Jira descriptions/comments, Confluence v2 bodies).
+//   render  <file|->   document formats → compact markdown
+//   parse   <file|->   document → canonical blocks; data → parsed value
+//   detect  <file|->   which codec claims this input
+// All verbs accept --format <id> to override detection.
 import { readFileSync } from 'node:fs';
-import { parse } from './parse.js';
-import { render } from './render.js';
+import { read } from './registry.js';
+import { renderBlocks } from './render.js';
 
-export function loadAdf(path) {
-  const text = path === '-' ? readFileSync(0, 'utf8') : readFileSync(path, 'utf8');
-  const doc = JSON.parse(text);
-  // Accept whole API payloads too: pluck common ADF locations.
-  if (doc.type === 'doc') return doc;
-  if (doc.fields?.description?.type === 'doc') return doc.fields.description;
-  if (doc.body?.atlas_doc_format?.value) return JSON.parse(doc.body.atlas_doc_format.value);
-  if (doc.body?.type === 'doc') return doc.body;
-  throw new Error('No ADF document found in input');
+function loadText(path) {
+  return path === '-' ? readFileSync(0, 'utf8') : readFileSync(path, 'utf8');
 }
 
-const [cmd, ...args] = process.argv.slice(2);
+function opts(path, args) {
+  const i = args.indexOf('--format');
+  return { filename: path === '-' ? null : path, format: i >= 0 ? args[i + 1] : null };
+}
+
+const [cmd, path, ...rest] = process.argv.slice(2);
 try {
   switch (cmd) {
-    case 'render':
-      console.log(render(loadAdf(args[0])));
+    case 'render': {
+      const result = read(loadText(path), opts(path, rest));
+      if (result.kind !== 'document') {
+        throw new Error(`"${result.codec}" is a data format — use: read-better outline ${path}`);
+      }
+      console.log(renderBlocks(result.blocks));
       break;
-    case 'parse':
-      console.log(JSON.stringify(parse(loadAdf(args[0])), null, 2));
+    }
+    case 'parse': {
+      const result = read(loadText(path), opts(path, rest));
+      console.log(JSON.stringify(result.kind === 'document' ? result.blocks : result.value, null, 2));
       break;
+    }
+    case 'detect': {
+      const result = read(loadText(path), opts(path, rest));
+      console.log(`${result.codec} (${result.kind})`);
+      break;
+    }
     default:
       console.log(`read-better — token-efficient reading of work-tool formats
 
 Usage:
-  read-better render <doc.json|->   rich format → compact markdown
-  read-better parse  <doc.json|->   rich format → canonical blocks (JSON)
+  read-better render <file|-> [--format <id>]   document → compact markdown
+  read-better parse  <file|-> [--format <id>]   → canonical blocks / value
+  read-better detect <file|->                   which codec claims the input
 
-Accepts bare ADF docs, Jira issue payloads (fields.description), and
-Confluence v2 bodies (body.atlas_doc_format). Diffing lives in what-changed.`);
+Formats: adf (Jira/Confluence rich text — accepts bare docs, Jira issue
+payloads, Confluence v2 bodies), json (generic data). More coming: markdown,
+yaml, figma, openapi, a11y. Diffing lives in what-changed.`);
   }
 } catch (err) {
   console.error(err.message);

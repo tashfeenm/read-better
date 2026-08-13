@@ -1,17 +1,32 @@
-// Parse ADF (Atlassian Document Format) into a canonical block tree.
-// A block is { id, type, text, ...meta } — flat enough to diff by identity,
-// rich enough to render back to compact markdown. Pure: no network, no state.
-import { createHash } from 'node:crypto';
+// ADF codec — Atlassian Document Format: the JSON rich-text format in Jira
+// descriptions/comments and Confluence v2 page bodies. kind: document.
+// Unwrapping API payload shapes (Jira issue, Confluence body) is THIS
+// codec's job, not the caller's.
+import { finalizeBlocks } from '../blocks.js';
 
-/** Parse an ADF document (object or JSON string) into canonical blocks. */
-export function parse(adf) {
-  const doc = typeof adf === 'string' ? JSON.parse(adf) : adf;
-  if (!doc || doc.type !== 'doc' || !Array.isArray(doc.content)) {
-    throw new Error('Not an ADF document: expected { type: "doc", content: [...] }');
+export const id = 'adf';
+export const kind = 'document';
+
+/** Find the ADF doc inside a value: bare doc or known API wrapper shapes. */
+export function unwrap(value) {
+  if (!value || typeof value !== 'object') return null;
+  if (value.type === 'doc' && Array.isArray(value.content)) return value;
+  if (value.fields?.description?.type === 'doc') return value.fields.description;
+  if (typeof value.body?.atlas_doc_format?.value === 'string') {
+    try { return unwrap(JSON.parse(value.body.atlas_doc_format.value)); } catch { return null; }
   }
-  const blocks = doc.content.map(toBlock).filter(Boolean);
-  assignIds(blocks);
-  return blocks;
+  if (value.body?.type === 'doc') return value.body;
+  return null;
+}
+
+export function detectValue(value) {
+  return unwrap(value) !== null;
+}
+
+export function parse(input) {
+  const doc = unwrap(typeof input === 'string' ? JSON.parse(input) : input);
+  if (!doc) throw new Error('Not an ADF document: expected { type: "doc", content: [...] } (or a Jira/Confluence payload containing one)');
+  return finalizeBlocks(doc.content.map(toBlock).filter(Boolean));
 }
 
 function toBlock(node) {
@@ -147,31 +162,4 @@ function applyMarks(text, marks) {
 
 function rawText(node) {
   return (node.content ?? []).map((c) => c.text ?? rawText(c)).join('');
-}
-
-/**
- * Stable block identities: hash of type + normalized content, with an
- * occurrence suffix so repeated identical blocks stay distinct. Editing a
- * block changes its id (surfaces as remove+add, paired back up by the
- * differ's similarity pass); moving a block does not.
- */
-function assignIds(blocks) {
-  const seen = new Map();
-  for (const block of blocks) {
-    const basis = `${block.type}:${normalize(contentOf(block))}`;
-    const hash = createHash('sha256').update(basis).digest('hex').slice(0, 8);
-    const n = seen.get(hash) ?? 0;
-    seen.set(hash, n + 1);
-    block.id = n === 0 ? hash : `${hash}~${n}`;
-  }
-}
-
-export function contentOf(block) {
-  if (block.items) return block.items.map((i) => (typeof i === 'string' ? i : `${i.state}:${i.text}`)).join('\n');
-  if (block.rows) return block.rows.map((r) => r.join('|')).join('\n');
-  return block.text ?? '';
-}
-
-function normalize(text) {
-  return text.replace(/\s+/g, ' ').trim().toLowerCase();
 }

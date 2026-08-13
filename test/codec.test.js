@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { parse, render } from '../src/index.js';
+import { parse, render, read } from '../src/index.js';
+import { finalizeBlocks } from '../src/blocks.js';
 
 const FIXTURES = join(dirname(fileURLToPath(import.meta.url)), '..', 'fixtures');
 const v1 = JSON.parse(readFileSync(join(FIXTURES, 'release-notes-v1.json'), 'utf8'));
@@ -40,6 +41,39 @@ test('render: compact markdown, and much smaller than the ADF source', () => {
   assert.ok(md.length < adfSize / 3, `markdown (${md.length}) should be <1/3 of ADF (${adfSize})`);
 });
 
-test('parse: rejects non-ADF input', () => {
-  assert.throws(() => parse({ hello: 'world' }), /Not an ADF document/);
+test('detection: generic JSON is data, not an error; parse() refuses data formats', () => {
+  const result = read({ hello: 'world' });
+  assert.equal(result.codec, 'json');
+  assert.equal(result.kind, 'data');
+  assert.deepEqual(result.value, { hello: 'world' });
+  assert.throws(() => parse({ hello: 'world' }), /data format/);
+});
+
+test('detection: Jira/Confluence wrappers are unwrapped by the ADF codec', () => {
+  const wrapped = { fields: { description: v1 } };
+  const result = read(wrapped);
+  assert.equal(result.codec, 'adf');
+  assert.equal(result.blocks[0].text, 'Checkout Redesign — Rollout Plan');
+});
+
+test('detection: malformed JSON errors loudly instead of falling through', () => {
+  assert.throws(() => read('{ "broken": '), /looks like JSON but failed to parse/);
+});
+
+test('blocks contract: id is identity, hash is fingerprint', () => {
+  const blocks = parse(v1);
+  assert.ok(blocks.every((b) => typeof b.id === 'string' && typeof b.hash === 'string'));
+
+  // meta participates in the fingerprint but NOT in content-derived identity.
+  const [plain] = finalizeBlocks([{ type: 'endpoint', text: 'GET /users' }]);
+  const [withMeta] = finalizeBlocks([{ type: 'endpoint', text: 'GET /users', meta: { params: ['role(query)'] } }]);
+  assert.equal(plain.id, withMeta.id);
+  assert.notEqual(plain.hash, withMeta.hash);
+
+  // native-id blocks: repeats get suffixed, never silently collide.
+  const dupes = finalizeBlocks(
+    [{ id: 'n1', type: 'node', text: 'a' }, { id: 'n1', type: 'node', text: 'b' }],
+    { contentIds: false }
+  );
+  assert.deepEqual(dupes.map((b) => b.id), ['n1', 'n1~1']);
 });

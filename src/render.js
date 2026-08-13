@@ -1,11 +1,20 @@
-// Render canonical blocks (or a whole ADF doc) to compact markdown.
-// This is the token-efficiency payoff: a Jira description that arrives as
-// ~40 lines of ADF JSON reads back as 3 lines of markdown.
-import { parse } from './parse.js';
+// Render canonical blocks to compact markdown — the shared default view for
+// document codecs. This is the token-efficiency payoff: a Jira description
+// that arrives as ~40 lines of ADF JSON reads back as 3 lines of markdown.
+import { read } from './registry.js';
 
-/** Render an ADF document or a pre-parsed block array to markdown. */
-export function render(input) {
-  const blocks = Array.isArray(input) ? input : parse(input);
+/** Render raw input (auto-detected document format) to markdown. */
+export function render(input, opts = {}) {
+  const result = read(input, opts);
+  if (result.kind !== 'document') {
+    throw new Error(`"${result.codec}" is a data format — use outline() / the outline verb, not render.`);
+  }
+  return renderBlocks(result.blocks);
+}
+
+/** Render pre-parsed canonical blocks. Explicit on purpose: a bare JSON
+ *  array must never be silently mistaken for blocks. */
+export function renderBlocks(blocks) {
   return blocks.map(renderBlock).filter((s) => s !== null).join('\n\n');
 }
 
@@ -47,8 +56,10 @@ function renderBlock(block) {
   }
 }
 
-/** One-line label for a block, used in diff summaries. */
+/** One-line label for a block, used in diff summaries. Codecs may precompute
+ *  block.label; this is the shape-based fallback. */
 export function labelOf(block) {
+  if (block.label) return block.label;
   const clip = (s, n = 48) => (s.length > n ? s.slice(0, n - 1) + '…' : s);
   switch (block.type) {
     case 'heading': return `section "${clip(block.text)}"`;
