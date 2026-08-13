@@ -9,10 +9,12 @@
 import * as adf from './codecs/adf.js';
 import * as json from './codecs/json.js';
 import * as markdown from './codecs/markdown.js';
+import * as yaml from './codecs/yaml.js';
+import { parseYaml, YamlSubsetError } from './yaml.js';
 
 // Ordered: specific document codecs before the generic data fallback.
 const VALUE_CODECS = [adf, json];
-const ALL_CODECS = [adf, json, markdown];
+const ALL_CODECS = [adf, json, markdown, yaml];
 
 export function codecById(id) {
   const codec = ALL_CODECS.find((c) => c.id === id);
@@ -71,7 +73,18 @@ function resolveCodec(input, { filename, format }) {
     throw new Error('Input looks like JSON but failed to parse. Fix the JSON or pass --format.');
   }
 
-  throw new Error('Could not detect format (tried JSON; Markdown needs a .md filename or --format). Pass --format to override.');
+  // 3) YAML subset — accepted only with a STRUCTURED root (map/sequence);
+  // bare-scalar "YAML" would swallow arbitrary prose.
+  try {
+    const value = parseYaml(text);
+    if (value !== null && typeof value === 'object') {
+      return yamlFamilyCodec(value);
+    }
+  } catch (err) {
+    if (err instanceof YamlSubsetError) throw err; // named construct — helpful, don't mask
+  }
+
+  throw new Error('Could not detect format (tried JSON, YAML; Markdown needs a .md filename or --format). Pass --format to override.');
 }
 
 function detectFromValue(value) {
@@ -79,6 +92,12 @@ function detectFromValue(value) {
     if (codec.detectValue?.(value)) return codec;
   }
   return json;
+}
+
+// YAML-parsed values route to document codecs that ride on YAML (a11y, once
+// registered) or fall back to generic YAML data.
+function yamlFamilyCodec(_value) {
+  return yaml;
 }
 
 function coerceForCodec(input, codec) {
