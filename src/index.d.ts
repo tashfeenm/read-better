@@ -7,7 +7,8 @@ export interface Block {
    *  by similarity); native ids never should be re-paired. */
   idSource: 'content' | 'native';
   /** Fingerprint: WHAT the block currently says — type + content +
-   *  significant meta. Same id + different hash = changed in place. */
+   *  significant meta + structural fields (level, language, ordered,
+   *  panelType, title, ids). Same id + different hash = changed in place. */
   hash: string;
   type: string;
   text?: string;
@@ -57,7 +58,8 @@ export function labelOf(block: Block): string;
 /** The comparable content of a block (text, items, or rows flattened). */
 export function contentOf(block: Block): string;
 
-/** Fingerprint of a block (type + normalized content + canonical meta). */
+/** Fingerprint of a block (type + normalized content + canonical meta +
+ *  structural fields: level, language, ordered, panelType, title, ids). */
 export function fingerprint(block: Block): string;
 
 export interface OutlineLine {

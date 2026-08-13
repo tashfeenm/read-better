@@ -70,6 +70,21 @@ test('blocks contract: id is identity, hash is fingerprint', () => {
   assert.equal(plain.id, withMeta.id);
   assert.notEqual(plain.hash, withMeta.hash);
 
+  const structuralCases = [
+    { name: 'heading level', type: 'heading', from: { level: 1 }, to: { level: 2 } },
+    { name: 'code language', type: 'code', from: { language: 'bash' }, to: { language: 'sh' } },
+    { name: 'list ordered', type: 'list', from: { items: ['same'], ordered: false }, to: { items: ['same'], ordered: true } },
+    { name: 'panel type', type: 'panel', from: { panelType: 'info' }, to: { panelType: 'warning' } },
+    { name: 'expand title', type: 'expand', from: { title: 'Before' }, to: { title: 'After' } },
+    { name: 'media ids', type: 'media', from: { ids: ['a', 'b'] }, to: { ids: ['b', 'a'] } },
+  ];
+  for (const { name, type, from, to } of structuralCases) {
+    const [before] = finalizeBlocks([{ type, text: 'same', ...from }]);
+    const [after] = finalizeBlocks([{ type, text: 'same', ...to }]);
+    assert.equal(before.id, after.id, `${name}: structural changes keep content identity`);
+    assert.notEqual(before.hash, after.hash, `${name}: structural changes update fingerprint`);
+  }
+
   // native-id blocks: repeats get suffixed, never silently collide.
   const dupes = finalizeBlocks(
     [{ id: 'n1', type: 'node', text: 'a' }, { id: 'n1', type: 'node', text: 'b' }],

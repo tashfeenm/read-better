@@ -3,7 +3,8 @@
 //   id   — identity: WHICH block this is. Native when the format has real
 //          ids (Figma nodes, "METHOD /path"); content-derived otherwise.
 //   hash — fingerprint: WHAT the block currently says (type + content +
-//          significant meta). Same id + different hash = the block changed.
+//          significant meta + structural fields: level, language, ordered,
+//          panelType, title, and ids). Same id + different hash = changed.
 // Separating the two is what lets diffing catch edits in native-id formats.
 import { createHash } from 'node:crypto';
 
@@ -33,8 +34,20 @@ function canonicalMeta(meta) {
   return JSON.stringify(out);
 }
 
+const STRUCTURAL_FIELDS = ['level', 'language', 'ordered', 'panelType', 'title', 'ids'];
+
+function canonicalStructure(block) {
+  const out = {};
+  for (const key of STRUCTURAL_FIELDS.filter((key) => block[key] !== undefined).sort()) {
+    // Unlike metadata arrays, media ids retain their rendering order.
+    out[key] = block[key];
+  }
+  return JSON.stringify(out);
+}
+
+/** Fingerprint of type, normalized content, canonical meta, and structural fields. */
 export function fingerprint(block) {
-  return sha256(`${block.type}:${normalize(contentOf(block))}:${canonicalMeta(block.meta)}`).slice(0, 12);
+  return sha256(`${block.type}:${normalize(contentOf(block))}:${canonicalMeta(block.meta)}:${canonicalStructure(block)}`).slice(0, 12);
 }
 
 /**

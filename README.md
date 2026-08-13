@@ -1,8 +1,8 @@
 # read-better
 
 > Token-efficient reading for AI agents. Parse the rich formats work tools
-> actually emit — Jira/Confluence ADF today; JSON/YAML outlines, Markdown,
-> Figma trees, OpenAPI, Playwright snapshots next — into **addressable
+> actually emit — Jira/Confluence ADF, JSON/YAML outlines, Markdown, Figma
+> trees, OpenAPI, and Playwright snapshots — into **addressable
 > blocks**, and render them as compact markdown.
 
 **The problem:** ask a work tool's API for content and you get a deeply

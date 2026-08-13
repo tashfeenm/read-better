@@ -71,8 +71,9 @@ Usage:
   read-better detect  <file|->                  which codec claims the input
 
 Formats: adf (Jira/Confluence rich text — accepts bare docs, Jira issue
-payloads, Confluence v2 bodies), json (generic data). More coming: markdown,
-yaml, figma, openapi, a11y. Diffing lives in what-changed.`);
+payloads, Confluence v2 bodies), markdown (hint/flag-gated), json
+(data/outline), yaml (data/outline, strict subset), a11y, figma, openapi.
+Diffing lives in what-changed.`);
   }
 } catch (err) {
   console.error(err.message);
